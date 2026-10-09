@@ -1,0 +1,29 @@
+# 密钥 / 本地配置
+.env
+.env.bak
+.env.*.local
+
+# Python / uv
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# IDE / 系统
+.idea/
+.DS_Store
+
+# 运行时数据（docker 挂载卷、本地数据、日志）
+volumes/
+data/
+logs/
+*.log
+
+# 店铺数据（含买家消息和商品资料，不公开）
+CedarSeaGoods_KB/
+metadata/
+
+# 个人笔记
+环境搭建进度.md
