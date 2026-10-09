@@ -34,7 +34,7 @@ from knowledgebase.tool.logger import logger
 # })
 
 # builder.add_edge(NodePDFToMD.name, NodeMDImg.name)
-# builder.add_edge(NodeMDImg.name, NodeItemNameRecognition.name)
+# builder.add_edge(NodeMDImg.name, NodeDocumentSplit.name)
 # builder.add_edge(NodeDocumentSplit.name, NodeItemNameRecognition.name)
 # builder.add_edge(NodeItemNameRecognition.name, NodeBGEEmbedding.name)
 # builder.add_edge(NodeBGEEmbedding.name, NodeImportMilvus.name)
@@ -77,7 +77,7 @@ class MainGraphRunner:
     })
 
     self.builder.add_edge(NodePDFToMD.name, NodeMDImg.name)
-    self.builder.add_edge(NodeMDImg.name, NodeItemNameRecognition.name)
+    self.builder.add_edge(NodeMDImg.name, NodeDocumentSplit.name)
     self.builder.add_edge(NodeDocumentSplit.name, NodeItemNameRecognition.name)
     self.builder.add_edge(NodeItemNameRecognition.name, NodeBGEEmbedding.name)
     self.builder.add_edge(NodeBGEEmbedding.name, NodeImportMilvus.name)

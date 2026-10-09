@@ -2,7 +2,7 @@ from pathlib import Path
 
 from knowledgebase.import_process.base import NodeBase
 from knowledgebase.import_process.state import ImportGraphState
-from knowledgebase.tool import logger
+from knowledgebase.tool.logger import logger
 
 
 class NodeEntry(NodeBase):
