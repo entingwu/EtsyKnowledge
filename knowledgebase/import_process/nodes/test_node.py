@@ -1,4 +1,7 @@
+import json
+
 from knowledgebase.import_process.base import NodeBase
+from knowledgebase.tool.json_format import json_format
 from knowledgebase.tool.logger import logger
 
 
@@ -12,7 +15,7 @@ class TestNode(NodeBase):
 if __name__ == '__main__':
     node = TestNode()
     init_state = {
-        "name": "test_node",
+        "local_file_path": "metadata/CedarSeaGoods_KB/pdf/01_4565343414_cufflinks-gold-groom.pdf",
     }
     result = node(init_state)
-    logger.info(result)
+    logger.info(json_format(result))
