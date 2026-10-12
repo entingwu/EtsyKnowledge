@@ -1,17 +1,20 @@
 import base64
 from collections import deque
 from pathlib import Path
+from datetime import datetime
 import os
 import re
 import time
 
 from langchain.chat_models import init_chat_model
+from minio.deleteobjects import DeleteObject
 
-from knowledgebase.config.config import LLMConfig
+from knowledgebase.config.config import LLMConfig, MinIoConfig
 from knowledgebase.import_process.base import NodeBase
 from knowledgebase.import_process.state import ImportGraphState
+from knowledgebase.tool.json_format import json_format
+from knowledgebase.tool.minio_client_tool import get_minio_client
 from knowledgebase.tool.logger import logger
-
 
 class NodeMDImg(NodeBase):
     """
@@ -41,7 +44,90 @@ class NodeMDImg(NodeBase):
         image_with_context_list = self.get_image_with_context_list(md_content, image_dir, image_names)
 
         image_with_summary_list = self.get_image_with_summary_list(image_with_context_list)
-        return state
+
+        image_with_summary_url_list = self.get_image_with_summary_url_list(
+            image_with_summary_list, md_path_obj
+        )
+
+        md_content, new_md_path_obj = self.replace_md_content(
+            md_content, image_with_summary_url_list, md_path_obj
+        )
+
+        return {
+            "md_path": str(new_md_path_obj),
+            "md_content": md_content,
+        }
+
+
+    def replace_md_content(self, md_content, image_with_summary_url_list, md_path_obj):
+        # 把md_content当中的图片路径替换成在线的图片url，摘要也要做替换
+        for image_with_summary_url in image_with_summary_url_list:
+            pattern = re.compile(r"!\[.*?\]\(.*?" + re.escape(image_with_summary_url.get("image_name")) + r"\)")
+            # 使用自己给定的字符串替换md_content当中符合正则的子串
+            # md_content = pattern.sub(
+            #     f"![{image_with_summary_url.get('summary')}]({image_with_summary_url.get('url')})",
+            #     md_content
+            # )
+
+            # 替换的时候字符串采用lambda表达式返回的方式去做。好处是这样的写法如果碰到字符串中有特殊字符不会炸。
+            md_content = pattern.sub(
+                lambda m : f"![{image_with_summary_url.get('summary')}]({image_with_summary_url.get('url')})",
+                md_content
+            )
+        # 构造最新的md文件路径，把替换完成的内容写到最新的文件
+        new_md_path_obj = md_path_obj.parent / f"{md_path_obj.stem}_new.md"
+        with open(new_md_path_obj, 'w', encoding="utf-8") as f:
+            f.write(md_content)
+        return md_content, new_md_path_obj
+
+    def get_image_with_summary_url_list(self, image_with_summary_list, md_path_obj):
+        # 后面接着上面的继续搞url
+        # 上传图片获取图片的在线url
+        minio_client = get_minio_client()
+        
+        # 构造上传图片在桶里面的目录（除了桶和文件）
+        # upload_dir 是目录名
+        upload_dir = f"{MinIoConfig.minio_img_dir}/{datetime.now().strftime('%Y%m%d')}/{md_path_obj.stem}"
+        # 本来我们准备好上传的目录之后就可以调用工具进行上传，但是在删除之前我们都要去做一个幂等性删除, 图片如果存在了就删除
+        # 幂等性删除图片
+
+        # 1. 根据工具从minio当中获取到upload_dir下的老文件
+        bucket_name = MinIoConfig.minio_bucket_name
+        old_image_generator = minio_client.list_objects(
+            bucket_name=bucket_name,
+            prefix=upload_dir,
+            recursive=True
+        )
+
+        # 2. 把老文件转化为delete_object_list
+        delete_object_list = [DeleteObject(obj.object_name) for obj in old_image_generator]
+
+        # 3. 调用工具删除minio当中的老文件
+        errors = minio_client.remove_objects(
+            bucket_name=bucket_name,
+            delete_object_list=delete_object_list,
+        )
+        # 如果我们没有遍历它，图片删除了，代表这个生成器是错误信息的生成器
+        for error in errors:
+            print("error occurred when deleting object", error)
+
+        image_with_summary_url_list = []
+        for image_with_summary in image_with_summary_list:
+            minio_client.fput_object(
+                bucket_name=bucket_name,
+                object_name=f"{upload_dir}/{image_with_summary.get('image_name')}", # 目录名 + 文件名
+                file_path=image_with_summary.get("image_path")
+            )
+
+            url = f"http://{MinIoConfig.minio_endpoint}/{bucket_name}/{upload_dir}/{image_with_summary.get('image_name')}"
+            print('url', url)
+            image_with_summary_url_list.append({
+                **image_with_summary,
+                "url": url,
+            })
+
+        logger.info(json_format(image_with_summary_url_list))
+        return image_with_summary_url_list
 
     def get_md_content(self, state: ImportGraphState):
         md_path = state.get("md_path")

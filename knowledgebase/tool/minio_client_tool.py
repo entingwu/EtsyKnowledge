@@ -21,28 +21,28 @@ def get_minio_client():
       # minio用得上http协议，所以这里设置为False. 请求的时候就不会报错使用的是http
     )
 
-  bucket_name = MinIoConfig.minio_bucket_name
-  if not minio_client.bucket_exists(bucket_name):
-    minio_client.make_bucket(bucket_name)
+    bucket_name = MinIoConfig.minio_bucket_name
+    if not minio_client.bucket_exists(bucket_name):
+      minio_client.make_bucket(bucket_name)
 
-  # 对桶进行设置权限 写公开 写校验
-  policy = {
-      "Version": "2012-10-17",
-      "Statement": [
-          {
-              "Effect": "Allow",
-              "Principal": {"AWS": "*"},
-              "Action": ["s3:GetBucketLocation", "s3:ListBucket"],
-              "Resource": f"arn:aws:s3:::{MinIoConfig.minio_bucket_name}",
-          },
-          {
-              "Effect": "Allow",
-              "Principal": {"AWS": "*"},
-              "Action": "s3:GetObject",
-              "Resource": f"arn:aws:s3:::{MinIoConfig.minio_bucket_name}/*",
-          },
-      ],
-  }
-  minio_client.set_bucket_policy(bucket_name, json.dumps(policy))
+    # 对桶进行设置权限 写公开 写校验
+    policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": "*"},
+                "Action": ["s3:GetBucketLocation"],
+                "Resource": f"arn:aws:s3:::{MinIoConfig.minio_bucket_name}",
+            },
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": "*"},
+                "Action": "s3:GetObject",
+                "Resource": f"arn:aws:s3:::{MinIoConfig.minio_bucket_name}/*",
+            },
+        ],
+    }
+    minio_client.set_bucket_policy(bucket_name, json.dumps(policy))
 
   return minio_client
