@@ -2,6 +2,10 @@
 .env
 .env.bak
 .env.*.local
+*.pem
+*.key
+secrets/
+credentials*.json
 
 # Python / uv
 .venv/

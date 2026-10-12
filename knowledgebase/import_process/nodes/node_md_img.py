@@ -72,8 +72,8 @@ class NodeMDImg(NodeBase):
             if not match:
                 logger.warning("没有找到图片的引用")
                 continue
+
             start, end = match.span() # 拿到每张图片在内容当中的起始位置和结束位置
-            print(start, end)
             pre_text = md_content[max(start-300, 0) : start]
             post_text = md_content[end : min(end+300, len(md_content))]
             image_with_context_list.append({
@@ -85,6 +85,7 @@ class NodeMDImg(NodeBase):
         return image_with_context_list
 
     def get_image_with_summary_list(self, image_with_context_list):
+        # 我们就可以把图片的上下文 图片的内容 我们自己写的提示词 交给大模型去帮我们整理摘要（视觉大模型）
         llm = init_chat_model(
             model=LLMConfig.vl_model,
             model_provider="openai",
@@ -140,14 +141,15 @@ class NodeMDImg(NodeBase):
                             },
                         },
                         {"type": "text", "text": f"""This is an image. The text before the image is: "{image_with_context.get('pre_text')}"
-                        The text after the image is: "{image_with_context.get('post_text')}"
-                        Briefly summarize this image in English, in no more than 50 words."""
+                            The text after the image is: "{image_with_context.get('post_text')}"
+                            Briefly summarize this image in English, in no more than 50 words."""
                         },
                     ],
                 },
             ]
 
             res = llm.invoke(input=messages)
+
             image_with_summary_list.append({
                 "image_name": image_with_context.get("image_name"),
                 "summary": res.content,
