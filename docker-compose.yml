@@ -1,14 +1,16 @@
-# Etsy KB（CedarSeaGoods）专用基础设施：Milvus(standalone) + Neo4j + MongoDB + MinIO + Attu
+# Etsy KB（CedarSeaGoods）基础设施：Milvus(standalone) + Neo4j + MongoDB + MinIO + Attu
 # 用法：docker compose up -d   （在本目录执行）
-# 与 knowledge_base 项目（kb-*）完全隔离：项目名、容器名、网络、数据目录、宿主机端口都不同，两套可以同时运行
-# MinIO 一份两用 —— Milvus 内部用 a-bucket，应用用 etsy-kb（见 .env 的 MINIO_BUCKET_NAME）
+# MinIO / Milvus / Attu 与 knowledge_base 项目共用（knowledge_base 只自带 Neo4j + Mongo，须先启动本项目）：
+#   MinIO   应用用 etsy-kb bucket，knowledge_base 用 knowledge-base bucket；Milvus 内部用 a-bucket
+#   Milvus  本项目用 etsy_kb database，knowledge_base 用 default database
+# 不要执行 docker compose down -v，会连同 knowledge_base 的数据一起删除
 #
 # 宿主机端口（课程默认端口 → 本项目）：
-#   MinIO   9000/9001   → 9100/9101
-#   Milvus  19530/9091  → 19540/9191
+#   MinIO   9000/9001   → 9000/9001   （共用）
+#   Milvus  19530/9091  → 19530/9091  （共用）
+#   Attu    8080        → 8080        （共用）
 #   Neo4j   7474/7687   → 7475/7688
 #   Mongo   27017       → 27018
-#   Attu    8080        → 8081
 
 name: etsy-kb
 
@@ -37,8 +39,8 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - "9100:9000"   # S3 API
-      - "9101:9001"   # 控制台 http://127.0.0.1:9101
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # 控制台 http://127.0.0.1:9001
     volumes:
       - ./volumes/minio:/minio_data
     command: minio server /minio_data --console-address ":9001"
@@ -62,8 +64,8 @@ services:
     volumes:
       - ./volumes/milvus:/var/lib/milvus
     ports:
-      - "19540:19530"  # gRPC
-      - "9191:9091"    # 健康检查 http://127.0.0.1:9191/healthz
+      - "19530:19530"  # gRPC
+      - "9091:9091"    # 健康检查 http://127.0.0.1:9091/healthz
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
       interval: 30s
@@ -104,6 +106,6 @@ services:
     environment:
       MILVUS_URL: milvus:19530
     ports:
-      - "8081:3000"   # 浏览器 http://127.0.0.1:8081
+      - "8080:3000"   # 浏览器 http://127.0.0.1:8080（7000 被隔空播放占用，8000 留给 import_service）
     depends_on:
       - milvus
