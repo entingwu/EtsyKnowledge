@@ -107,6 +107,7 @@ class NodeMDImg(NodeBase):
             bucket_name=bucket_name,
             delete_object_list=delete_object_list,
         )
+        # 打印想知道errors生成器的错误信息的生成器，还是真正删除图片的生成器
         # 如果我们没有遍历它，图片删除了，代表这个生成器是错误信息的生成器
         for error in errors:
             print("error occurred when deleting object", error)
