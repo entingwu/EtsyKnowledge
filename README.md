@@ -53,15 +53,15 @@ docker compose up -d         # 启动基础设施
 
 在 VS Code / PyCharm 里把解释器设为 `.venv/bin/python`。
 
-本项目的端口与课程默认端口错开，可与其他知识库项目同时运行：
-
 | 服务 | 宿主机端口 |
 | --- | --- |
-| MinIO API / 控制台 | 9100 / 9101 |
-| Milvus / 健康检查 | 19540 / 9191 |
+| MinIO API / 控制台 | 9000 / 9001 |
+| Milvus / 健康检查 | 19530 / 9091 |
 | Neo4j HTTP / Bolt | 7475 / 7688 |
 | MongoDB | 27018 |
-| Attu（Milvus 管理界面） | 8081 |
+| Attu（Milvus 管理界面） | 8080 |
+
+数据写入 Milvus 库 `etsy_kb` 的 `etsy_kb_chunks` 和 `etsy_kb_item_names`，详见 `docs/DEV_PROGRESS.md`。
 
 ## 运行
 
