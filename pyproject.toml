@@ -36,3 +36,14 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["knowledgebase"]
+
+[tool.uv.sources]
+# 强制从 NVIDIA 源安装（macOS 没有 CUDA，继续使用 PyPI 的 MPS 版本）
+torch = { index = "pytorch-cuda", marker = "sys_platform != 'darwin'" }
+torchvision = { index = "pytorch-cuda", marker = "sys_platform != 'darwin'" }
+torchaudio = { index = "pytorch-cuda", marker = "sys_platform != 'darwin'" }
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true

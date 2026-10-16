@@ -247,7 +247,7 @@ class NodeMDImg(NodeBase):
 if __name__ == '__main__':
     node = NodeMDImg()
     init_state = {
-        "md_path": r"/Users/entingwu/PycharmProjects/EtsyKnowledge/metadata/CedarSeaGoods_KB/listings/02_wedding-keepsakes/001_4565343414_cufflinks-gold-groom.md",
+        "md_path": str(Path(__file__).resolve().parents[3] / "metadata/CedarSeaGoods_KB/listings/02_wedding-keepsakes/001_4565343414_cufflinks-gold-groom.md"),
     }
     result = node(init_state)
     print(result)

@@ -27,7 +27,7 @@ class NodeDocumentSplit(NodeBase):
         # Step 3. 对片段内容比较长的进行长切得到最终的chunks
         final_chunk_list = self.get_final_chunk_list(split_section_list, file_title)
         
-        with open(r"/Users/entingwu/PycharmProjects/EtsyKnowledge/data/chunks.json", "w", encoding="utf-8") as f:
+        with open(Path(__file__).resolve().parents[3] / "data/chunks.json", "w", encoding="utf-8") as f:
             f.write(json_format(final_chunk_list))
             # json.dump(final_chunk_list, f, ensure_ascii=False, indent=4)
         return {
@@ -153,7 +153,7 @@ class NodeDocumentSplit(NodeBase):
 if __name__ == "__main__":
     node = NodeDocumentSplit()
     init_state = {
-        "md_path": r"/Users/entingwu/PycharmProjects/EtsyKnowledge/metadata/CedarSeaGoods_KB/listings/02_wedding-keepsakes/001_4565343414_cufflinks-gold-groom.md",
+        "md_path": str(Path(__file__).resolve().parents[3] / "metadata/CedarSeaGoods_KB/listings/02_wedding-keepsakes/001_4565343414_cufflinks-gold-groom.md"),
         "file_title": "001_4565343414_cufflinks-gold-groom"
     }
     result = node(init_state)

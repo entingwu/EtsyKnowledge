@@ -62,6 +62,17 @@ class MilvusConfig:
     # 商品名称集合名
     item_name_collection=os.getenv('ITEM_NAME_COLLECTION')
 
+class BGEM3Config:
+
+    # BGE-M3 模型本地路径
+    bge_m3_path=os.getenv('BGE_M3_PATH')
+    # BGE-M3 模型名称
+    bge_m3=os.getenv('BGE_M3')
+    # 嵌入模型运行设备（mps / cpu / cuda:0）
+    bge_device=os.getenv('BGE_DEVICE')
+    # 是否使用半精度
+    BGE_FP16=os.getenv('BGE_FP16') in ("True", "true", "1")
+
 
 if __name__ == '__main__':
     env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.env"))
