@@ -1,7 +1,6 @@
 import base64
 from collections import deque
 from pathlib import Path
-from datetime import datetime
 import os
 import re
 import time
@@ -87,7 +86,7 @@ class NodeMDImg(NodeBase):
         
         # 构造上传图片在桶里面的目录（除了桶和文件）
         # upload_dir 是目录名
-        upload_dir = f"{MinIoConfig.minio_img_dir}/{datetime.now().strftime('%Y%m%d')}/{md_path_obj.stem}"
+        upload_dir = f"{MinIoConfig.minio_img_dir}/{md_path_obj.stem}"
         # 本来我们准备好上传的目录之后就可以调用工具进行上传，但是在删除之前我们都要去做一个幂等性删除, 图片如果存在了就删除
         # 幂等性删除图片
 
@@ -110,7 +109,7 @@ class NodeMDImg(NodeBase):
         # 打印想知道errors生成器的错误信息的生成器，还是真正删除图片的生成器
         # 如果我们没有遍历它，图片删除了，代表这个生成器是错误信息的生成器
         for error in errors:
-            print("error occurred when deleting object", error)
+            logger.error(f"error occurred when deleting object: {error}")
 
         image_with_summary_url_list = []
         for image_with_summary in image_with_summary_list:
@@ -121,7 +120,6 @@ class NodeMDImg(NodeBase):
             )
 
             url = f"http://{MinIoConfig.minio_endpoint}/{bucket_name}/{upload_dir}/{image_with_summary.get('image_name')}"
-            print('url', url)
             image_with_summary_url_list.append({
                 **image_with_summary,
                 "url": url,
@@ -157,7 +155,7 @@ class NodeMDImg(NodeBase):
 
             match = pattern.search(md_content) # 从内容当中查找正则表达式，找到第一个就结束，如果没有找到，就返回None
             if not match:
-                logger.warning("没有找到图片的引用")
+                logger.warning(f"没有找到图片的引用: {image_name}")
                 continue
 
             start, end = match.span() # 拿到每张图片在内容当中的起始位置和结束位置
@@ -224,7 +222,7 @@ class NodeMDImg(NodeBase):
                         {
                             "type": "image_url",
                             "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_data}"
+                                "url": f"data:{self.get_image_mime_type(image_with_context.get('image_path'))};base64,{base64_data}"
                             },
                         },
                         {"type": "text", "text": f"""This is an image. The text before the image is: "{image_with_context.get('pre_text')}"
@@ -239,10 +237,17 @@ class NodeMDImg(NodeBase):
 
             image_with_summary_list.append({
                 "image_name": image_with_context.get("image_name"),
-                "summary": res.content,
+                "summary": self.clean_summary(res.content),
                 "image_path": image_with_context.get("image_path"),
             })
         return image_with_summary_list
+
+    def get_image_mime_type(self, image_path):
+        suffix = Path(image_path).suffix.lower()
+        return "image/jpeg" if suffix in {".jpg", ".jpeg"} else f"image/{suffix.lstrip('.')}"
+
+    def clean_summary(self, summary):
+        return " ".join(summary.replace("[", "(").replace("]", ")").split())
 
 if __name__ == '__main__':
     node = NodeMDImg()

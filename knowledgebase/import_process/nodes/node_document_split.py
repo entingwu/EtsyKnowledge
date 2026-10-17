@@ -27,7 +27,7 @@ class NodeDocumentSplit(NodeBase):
         # Step 3. 对片段内容比较长的进行长切得到最终的chunks
         final_chunk_list = self.get_final_chunk_list(split_section_list, file_title)
         
-        with open(Path(__file__).resolve().parents[3] / "data/chunks.json", "w", encoding="utf-8") as f:
+        with open(self.get_output_dir(state) / "chunks.json", "w", encoding="utf-8") as f:
             f.write(json_format(final_chunk_list))
             # json.dump(final_chunk_list, f, ensure_ascii=False, indent=4)
         return {
@@ -81,23 +81,20 @@ class NodeDocumentSplit(NodeBase):
                 "file_title": file_title,
             })
 
-        logger.info(json_format(split_section_list))
+        logger.info(f"粗切得到{len(split_section_list)}个section")
         return split_section_list
 
     def get_final_chunk_list(self, split_section_list, file_title):
         # 细切，长切短合
-        splitter = RecursiveCharacterTextSplitter(
-            separators=["\n\n", "\n", "。", "！", "？", "；", "!", "?", ";", ".", " "],
-            chunk_size = 300,
-            chunk_overlap = 50,
-        )
-
         final_chunk_list = []
         for split_section in split_section_list:
             # 获取每个区块的内容，根据内容判断长度是不是超过指定的长度，如果超过就再去切分，如果不超过就不切
             title = split_section.get("title")
             content = split_section.get("content")
-            real_content = content[len(title) + 2:] if content.startswith("#") else content 
+            real_content = content[len(title) + 2:] if content.startswith("#") else content
+
+            if not real_content.strip():
+                continue
 
             # 有多少个keyvalue，milvus就有多少个字段
             if len(real_content) < 300:
@@ -114,7 +111,15 @@ class NodeDocumentSplit(NodeBase):
                 })
                 continue
 
-            for idx, split_text in enumerate(splitter.split_text(real_content), start=1):
+            protected_content, images = self.protect_images(real_content)
+            splitter = RecursiveCharacterTextSplitter(
+                separators=["\n\n", "\n", "。", "！", "？", "；", "!", "?", ";", ".", " "],
+                chunk_size = 300,
+                chunk_overlap = 50,
+                length_function=lambda text: len(self.restore_images(text, images)),
+            )
+            split_texts = [self.restore_images(split_text, images) for split_text in splitter.split_text(protected_content)]
+            for idx, split_text in enumerate(self.merge_short_texts(split_texts), start=1):
                 # 把切成每个小块文本，也得组装成一个chunk字典，存入final_chunk_list
                 final_chunk_list.append({
                     "title": title,
@@ -123,8 +128,32 @@ class NodeDocumentSplit(NodeBase):
                     "part": idx, 
                 })
         
-        logger.info(json_format(final_chunk_list))
+        logger.info(f"细切得到{len(final_chunk_list)}个chunk")
         return final_chunk_list
+
+    def protect_images(self, content):
+        images = []
+
+        def to_placeholder(match):
+            images.append(match.group(0))
+            return f"[[IMG{len(images) - 1}]]"
+
+        return re.sub(r"!\[[^\]]*\]\([^)\s]*\)", to_placeholder, content), images
+
+    def restore_images(self, text, images):
+        return re.sub(r"\[\[IMG(\d+)\]\]", lambda m: images[int(m.group(1))], text)
+
+    def merge_short_texts(self, split_texts, min_length=100):
+        merged_texts = []
+        for split_text in split_texts:
+            if merged_texts and len(split_text) < min_length:
+                merged_texts[-1] = merged_texts[-1] + "\n\n" + split_text
+            else:
+                merged_texts.append(split_text)
+        if len(merged_texts) > 1 and len(merged_texts[0]) < min_length:
+            merged_texts[1] = merged_texts[0] + "\n\n" + merged_texts[1]
+            merged_texts.pop(0)
+        return merged_texts
 
     def get_md_content(self, state: ImportGraphState):
         md_path = state.get("md_path")

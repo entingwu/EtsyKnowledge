@@ -121,8 +121,8 @@ if __name__ == '__main__':
   # logger.info(result)
 
   init_state = {
-      "local_file_path": "metadata/CedarSeaGoods_KB/pdf/01_4565343414_cufflinks-gold-groom.pdf",
-      "local_dir": f"{Path(__file__).resolve().parents[3]}/output",
+      "local_file_path": "metadata/CedarSeaGoods_KB/pdf/02_wedding-keepsakes/001_4565343414_cufflinks-gold-groom.pdf",
+      "local_dir": f"{Path(__file__).resolve().parents[2]}/output",
   }
   result = MainGraphRunner.create_and_run(init_state)
-  logger.info(result)
+  logger.info(f"导入完成: file_title={result.get('file_title')}, item_name={result.get('item_name')}, chunks={len(result.get('chunks', []))}")

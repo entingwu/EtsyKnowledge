@@ -36,22 +36,22 @@ class NodeImportMilvus(NodeBase):
             ).add_field(
                 field_name="title",
                 datatype=DataType.VARCHAR,
-                max_length=100,
+                max_length=500,
             ).add_field(
                 field_name="file_title",
                 datatype=DataType.VARCHAR,
-                max_length=100
+                max_length=500
             ).add_field(
                 field_name="content",
                 datatype=DataType.VARCHAR,
-                max_length=3000
+                max_length=16384
             ).add_field(
                 field_name="part",
                 datatype=DataType.INT64,
             ).add_field(
                 field_name="item_name",
                 datatype=DataType.VARCHAR,
-                max_length=100
+                max_length=500
             ).add_field(
                 field_name="dense_vector",
                 datatype=DataType.FLOAT_VECTOR,
@@ -100,7 +100,7 @@ class NodeImportMilvus(NodeBase):
             collection_name=MilvusConfig.chunks_collection,
             data=chunks,
         )
-        print(res)
+        logger.info(f"插入{res.get('insert_count')}个chunk到{MilvusConfig.chunks_collection}")
         # 回填每个chunk在milvus当中的id到每个chunk，存储到state
         for idx, chunk in enumerate(chunks):
             # chunk["id"] = res.get("ids").pop(0)
@@ -112,7 +112,7 @@ class NodeImportMilvus(NodeBase):
 
 if __name__ == "__main__":
     node = NodeImportMilvus()
-    with open(Path(__file__).resolve().parents[3] / "output/chunks_embedding.json", "r", encoding="utf-8") as f:
+    with open(Path(__file__).resolve().parents[3] / "output/001_4565343414_cufflinks-gold-groom/chunks_embedding.json", "r", encoding="utf-8") as f:
         chunks = json.load(f)
     init_state = {
         "chunks": chunks,

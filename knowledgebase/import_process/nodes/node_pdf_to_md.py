@@ -37,7 +37,7 @@ class NodePDFToMD(NodeBase):
     def handler_md_file(self, local_dir_obj, local_file_path_obj, url):
         # 下载压缩包的内容并保存到本地的zip文件当中
         import requests
-        zip_res = requests.get(url)
+        zip_res = requests.get(url, timeout=120)
         if zip_res.status_code != 200:
             logger.error("下载压缩包的内容请求失败")
             raise ValueError("下载压缩包的内容请求失败")
@@ -77,41 +77,40 @@ class NodePDFToMD(NodeBase):
             "Content-Type": "application/json",
             "Authorization": f"Bearer {token}"
         }
-        total_time = 120
-        current_time = 0
-        # 轮询获取 隔2秒发一次请求 直到拿到需要的结果
-        while True:
+        total_time = 300
+        deadline = time.time() + total_time
+        # 轮询获取 隔3秒发一次请求 直到拿到需要的结果
+        while time.time() < deadline:
             try:
-                start_time = time.time()
-                res = requests.get(url, headers=header)
-                # 判断请求成功不成功
-                if res.status_code != 200:
-                    logger.error("获取mineru转化的md的压缩包路径请求失败")
-                    raise ValueError("获取mineru转化的md的压缩包路径请求失败")
-                # 请求成功拿请求体内容
-                result = res.json()
-                if result["code"] != 0:
-                    logger.error("获取mineru转化的md的压缩包路径请求数据获取失败")
-                    raise ValueError("获取mineru转化的md的压缩包路径请求数据获取失败")
-
-                data = result.get("data")
-                # 判断数据拿的对不对
-                if data.get("extract_result")[0].get("state") != "done":
-                    logger.error("获取mineru转化的md的压缩包路径请求数据获取数据不对，解析还在处理")
-                    raise ValueError("获取mineru转化的md的压缩包路径请求数据获取数据不对，解析还在处理")
-
-                url = data.get("extract_result")[0].get("full_zip_url")
-                # print(url)
-                break
-            except Exception as e:
-                time.sleep(2)
-                end_time = time.time()
-                current_time += end_time - start_time
-                if current_time > total_time:
-                    logger.error("获取mineru转化的md的压缩包路径请求超时")
-                    raise ValueError("获取mineru转化的md的压缩包路径请求超时")
+                res = requests.get(url, headers=header, timeout=30)
+            except requests.RequestException as e:
+                logger.warning(f"获取mineru转化的md的压缩包路径请求异常，重试: {e}")
+                time.sleep(3)
                 continue
-        return url
+            # 判断请求成功不成功
+            if res.status_code != 200:
+                logger.warning(f"获取mineru转化的md的压缩包路径请求失败，状态码{res.status_code}，重试")
+                time.sleep(3)
+                continue
+            # 请求成功拿请求体内容
+            result = res.json()
+            if result["code"] != 0:
+                logger.error(f"获取mineru转化的md的压缩包路径请求数据获取失败: {result.get('msg')}")
+                raise ValueError(f"获取mineru转化的md的压缩包路径请求数据获取失败: {result.get('msg')}")
+
+            extract_result = result.get("data").get("extract_result")[0]
+            state = extract_result.get("state")
+            # 判断数据拿的对不对
+            if state == "done":
+                return extract_result.get("full_zip_url")
+            if state == "failed":
+                logger.error(f"mineru解析失败: {extract_result.get('err_msg')}")
+                raise ValueError(f"mineru解析失败: {extract_result.get('err_msg')}")
+            logger.info(f"mineru解析还在处理，当前状态: {state}")
+            time.sleep(3)
+
+        logger.error("获取mineru转化的md的压缩包路径请求超时")
+        raise ValueError("获取mineru转化的md的压缩包路径请求超时")
 
     def upload_pdf_file(self, local_file_path, local_file_path_obj):
         # 使用minerU把pdf进行md的转换
@@ -125,32 +124,33 @@ class NodePDFToMD(NodeBase):
         }
         data = {
             "files": [
-                {"name": f"{local_file_path_obj.name}", "data_id": "abcd"}
+                {"name": f"{local_file_path_obj.name}", "data_id": local_file_path_obj.stem}
             ],
             "model_version": "vlm"
         }
         file_path = [local_file_path]
         # 判断请求成功不成功
-        response = requests.post(url, headers=header, json=data)
+        response = requests.post(url, headers=header, json=data, timeout=30)
         if response.status_code != 200:
             logger.error("上传文件请求失败")
             raise ValueError("上传文件请求失败")
         # 到这代表请求成功，然后拿响应报文当中的数据内容，接着要判断数据获取成功不成功
         result = response.json()
         if result["code"] != 0:
-            logger.error("上传文件请求数据获取失败")
-            raise ValueError("上传文件请求数据获取失败")
+            logger.error(f"上传文件请求数据获取失败: {result.get('msg')}")
+            raise ValueError(f"上传文件请求数据获取失败: {result.get('msg')}")
         # 如果后期数据还有对错之分，其实我们还要再去考虑一层判断，判断数据拿的对不对
         # 这个请求是没有数据对错的判断，因为这个数据不是实时数据，一般实时数据才会有对错判断
         batch_id = result["data"]["batch_id"]
         urls = result["data"]["file_urls"]
         for i in range(0, len(urls)):
             with open(file_path[i], 'rb') as f:
-                res_upload = requests.put(urls[i], data=f)
+                res_upload = requests.put(urls[i], data=f, timeout=120)
                 if res_upload.status_code == 200:
-                    logger.info(f"{urls[i]}上传成功")
+                    logger.info(f"{file_path[i]}上传成功")
                 else:
-                    logger.error(f"{urls[i]}上传失败")
+                    logger.error(f"{file_path[i]}上传失败，状态码{res_upload.status_code}")
+                    raise ValueError(f"{file_path[i]}上传失败，状态码{res_upload.status_code}")
         # print(batch_id)
         return batch_id
 

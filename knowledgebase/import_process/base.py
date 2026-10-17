@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 from knowledgebase.import_process.state import ImportGraphState
 from knowledgebase.tool.logger import logger
@@ -29,3 +30,9 @@ class NodeBase(ABC):
     @abstractmethod
     def process(self, state: ImportGraphState):
         pass
+
+    def get_output_dir(self, state: ImportGraphState):
+        local_dir = state.get("local_dir") or Path(__file__).resolve().parents[2] / "output"
+        output_dir = Path(local_dir) / state.get("file_title")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        return output_dir

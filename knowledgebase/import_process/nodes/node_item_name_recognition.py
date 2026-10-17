@@ -37,7 +37,7 @@ class NodeItemNameRecognition(NodeBase):
 
         # 4、幂等性删除后，把整理的商品名需要向量化存储到milvus,把识别的商品名回填到每个chunk，备份
         # 把整理的商品名需要向量化，存储到milvus
-        self.insert_data(milvus_client, item_name, file_title, chunks)
+        self.insert_data(milvus_client, item_name, file_title, chunks, self.get_output_dir(state))
 
         # 5. 把识别的商品名回填到每个chunk
         return {
@@ -45,7 +45,7 @@ class NodeItemNameRecognition(NodeBase):
             "item_name": item_name,
         }
 
-    def insert_data(self, milvus_client, item_name, file_title, chunks):
+    def insert_data(self, milvus_client, item_name, file_title, chunks, output_dir):
         # 5. 把整理的商品名需要向量化，存储到milvus
         # 5-1 幂等性删除.
         # 先删除再插入，删除的时候其实可以是item_name作为过滤条件，file_title作为过滤条件更精准。
@@ -77,7 +77,7 @@ class NodeItemNameRecognition(NodeBase):
             chunk["item_name"] = item_name
             
         # 备份最新的chunks也就是回填完item_name的chunks到本地文件，方便下个节点读取使用
-        with open(Path(__file__).resolve().parents[3] / "output/chunk_item_name.json", "w", encoding="utf-8") as f:
+        with open(output_dir / "chunk_item_name.json", "w", encoding="utf-8") as f:
             f.write(json_format(chunks))
 
     def create_milvus_collection(self):
@@ -183,7 +183,7 @@ class NodeItemNameRecognition(NodeBase):
 
 if __name__ == '__main__':
     node = NodeItemNameRecognition()
-    with open(Path(__file__).resolve().parents[3] / "data/chunks.json", "r", encoding="utf-8") as f:
+    with open(Path(__file__).resolve().parents[3] / "output/001_4565343414_cufflinks-gold-groom/chunks.json", "r", encoding="utf-8") as f:
         # chunks = f.read()
         chunks = json.load(f)
     init_state = {

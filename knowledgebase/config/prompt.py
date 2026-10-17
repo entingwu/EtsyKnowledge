@@ -1,16 +1,17 @@
 # System Prompt
-ITEM_NAME_SYSTEM_PROMPT = "你是一个专业的商品名称识别模型，请根据提供的信息，识别商品名称。"
+ITEM_NAME_SYSTEM_PROMPT = "You are a professional product name recognition model. Identify the product name based on the information provided."
 
 # User Prompt Template
 ITEM_NAME_USER_PROMPT_TEMPLATE = """
-               请从以下信息中识别出商品名称与型号：
-               文件名：{file_title}
+               Identify the product name and model from the following information:
+               File name: {file_title}
 
-               正文切片（用于辅助识别）：
+               Content chunks (to assist identification):
                {context}
 
-               要求：
-               1. 返回内容为字符串形式，最好是带品牌、型号和名称的完整商品名称；
-               2. 返回结果应该只包含商品名称，不要添加任何解释或其他内容；
-               3. 如果无法识别商品名称,请返回空字符串。
+               Requirements:
+               1. Return a plain string, ideally the complete product name including brand, model and name;
+               2. Return only the product name, without any explanation or other content;
+               3. If the product name cannot be identified, return an empty string;
+               4. Use the original language of the content (English content returns English) and do not translate; prefer the product name in the document's top-level heading.
                """
