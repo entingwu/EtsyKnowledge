@@ -62,6 +62,12 @@ class MilvusConfig:
     # 商品名称集合名
     item_name_collection=os.getenv('ITEM_NAME_COLLECTION')
 
+class MongoConfig:
+    mongo_url = os.getenv('MONGO_URL')
+    mongo_host = os.getenv('MONGO_HOST')
+    mongo_port = int(os.getenv('MONGO_PORT'))
+    mongo_db_name = os.getenv('MONGO_DB_NAME')
+
 class BGEM3Config:
 
     # BGE-M3 模型本地路径
