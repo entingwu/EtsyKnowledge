@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from langgraph.graph import END, START, StateGraph
 
 from knowledgebase.import_process.state import ImportGraphState
@@ -120,6 +122,7 @@ if __name__ == '__main__':
 
   init_state = {
       "local_file_path": "metadata/CedarSeaGoods_KB/pdf/01_4565343414_cufflinks-gold-groom.pdf",
+      "local_dir": f"{Path(__file__).resolve().parents[3]}/output",
   }
   result = MainGraphRunner.create_and_run(init_state)
   logger.info(result)
