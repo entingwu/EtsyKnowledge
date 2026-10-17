@@ -21,6 +21,8 @@ class ImportGraphState(TypedDict):
     md_content: str # Markdown 的全文内容
     chunks: list    # 切片列表
     item_name:str # 识别主体的名称（例如：万用表）
+    listing_title: str # 一级标题中的完整listing标题
+    listing_id: str # 一级标题中的listing编号
 
     # 数据库关联
     embeddings_content: list # 包含向量数的列表 ，准备写入 Milvus

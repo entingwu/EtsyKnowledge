@@ -42,7 +42,7 @@ class NodeMDImg(NodeBase):
 
         image_with_context_list = self.get_image_with_context_list(md_content, image_dir, image_names)
 
-        image_with_summary_list = self.get_image_with_summary_list(image_with_context_list)
+        image_with_summary_list = self.get_image_with_summary_list(image_with_context_list, md_path_obj.stem)
 
         image_with_summary_url_list = self.get_image_with_summary_url_list(
             image_with_summary_list, md_path_obj
@@ -169,7 +169,7 @@ class NodeMDImg(NodeBase):
             })
         return image_with_context_list
 
-    def get_image_with_summary_list(self, image_with_context_list):
+    def get_image_with_summary_list(self, image_with_context_list, file_title):
         # 我们就可以把图片的上下文 图片的内容 我们自己写的提示词 交给大模型去帮我们整理摘要（视觉大模型）
         llm = init_chat_model(
             model=LLMConfig.vl_model,
@@ -233,14 +233,24 @@ class NodeMDImg(NodeBase):
                 },
             ]
 
-            res = llm.invoke(input=messages)
+            try:
+                res = llm.invoke(input=messages)
+                summary = self.clean_summary(res.content)
+            except Exception as e:
+                # 单张图片摘要失败（例如内容审核误判）不影响整个文件，用通用描述兜底
+                logger.warning(f"图片{image_with_context.get('image_name')}摘要生成失败，使用通用描述: {e}")
+                summary = self.get_fallback_summary(file_title)
 
             image_with_summary_list.append({
                 "image_name": image_with_context.get("image_name"),
-                "summary": self.clean_summary(res.content),
+                "summary": summary,
                 "image_path": image_with_context.get("image_path"),
             })
         return image_with_summary_list
+
+    def get_fallback_summary(self, file_title):
+        product = re.sub(r"^\d+_\d+_", "", file_title).replace("-", " ").replace("_", " ").strip()
+        return f"Product image of {product}" if product else "Product image"
 
     def get_image_mime_type(self, image_path):
         suffix = Path(image_path).suffix.lower()

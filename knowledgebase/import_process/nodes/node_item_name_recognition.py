@@ -26,26 +26,29 @@ class NodeItemNameRecognition(NodeBase):
         # 0. 获取数据
         chunks, file_title = self.get_chunks(state)
 
-        # 1. 拿到部分的chunk，把这些chunk的内容拼接起来变成一个字符串
-        chunks_str = self.get_chunks_str(chunks)
+        # 1. 优先从一级标题中拿到完整的listing标题，拿不到再把部分chunk的内容拼接起来变成一个字符串
+        listing_title, listing_id = self.get_listing_title(state.get("md_content") or "")
+        context = listing_title or self.get_chunks_str(chunks)
 
         # 2. 调用大模型把拼接的字符串作为prompt，整理总结主体（商品名）
-        item_name = self.get_item_name(file_title, chunks_str)
+        item_name = self.get_item_name(file_title, context)
 
         # 3. 创建milvus连接，并创建表collection
         milvus_client = self.create_milvus_collection()
 
         # 4、幂等性删除后，把整理的商品名需要向量化存储到milvus,把识别的商品名回填到每个chunk，备份
         # 把整理的商品名需要向量化，存储到milvus
-        self.insert_data(milvus_client, item_name, file_title, chunks, self.get_output_dir(state))
+        self.insert_data(milvus_client, item_name, listing_title, listing_id, file_title, chunks, self.get_output_dir(state))
 
         # 5. 把识别的商品名回填到每个chunk
         return {
             "chunks": chunks,
             "item_name": item_name,
+            "listing_title": listing_title,
+            "listing_id": listing_id,
         }
 
-    def insert_data(self, milvus_client, item_name, file_title, chunks, output_dir):
+    def insert_data(self, milvus_client, item_name, listing_title, listing_id, file_title, chunks, output_dir):
         # 5. 把整理的商品名需要向量化，存储到milvus
         # 5-1 幂等性删除.
         # 先删除再插入，删除的时候其实可以是item_name作为过滤条件，file_title作为过滤条件更精准。
@@ -60,9 +63,11 @@ class NodeItemNameRecognition(NodeBase):
         )
 
         #5-2 把item_name向量化添加到milvus
-        embeddings = get_bge_embeddings([item_name])
+        embeddings = get_bge_embeddings([listing_title or item_name])
         data = {
             "item_name": item_name,
+            "listing_title": listing_title,
+            "listing_id": listing_id,
             "file_title": file_title,
             "dense_vector": embeddings.get("dense")[0],
             "sparse_vector": embeddings.get("sparse")[0],
@@ -98,6 +103,14 @@ class NodeItemNameRecognition(NodeBase):
                 field_name="item_name",
                 datatype=DataType.VARCHAR,
                 max_length=500,
+            ).add_field(
+                field_name="listing_title",
+                datatype=DataType.VARCHAR,
+                max_length=1000,
+            ).add_field(
+                field_name="listing_id",
+                datatype=DataType.VARCHAR,
+                max_length=32,
             ).add_field(
                 field_name="file_title",
                 datatype=DataType.VARCHAR,
@@ -157,6 +170,12 @@ class NodeItemNameRecognition(NodeBase):
                 item_name = file_title
             return item_name
     
+    def get_listing_title(self, md_content):
+        match = re.search(r"^#\s+(.+?)\s*\((?:Listing\s*)?#?(\d{6,})\)\s*$", md_content, flags=re.IGNORECASE | re.MULTILINE)
+        if match:
+            return match.group(1).strip(), match.group(2)
+        return "", ""
+
     def get_chunks_str(self, chunks):
         chunk_k_list = chunks[:15]
         chunks_str = ""

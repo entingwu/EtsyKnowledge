@@ -34,10 +34,26 @@ class NodePDFToMD(NodeBase):
             "md_content":md_content
         }
 
+    def request_with_retry(self, method, url, max_retries=3, **kwargs):
+        # 网络异常或5xx时重试，其他状态码直接返回给调用方判断
+        import requests
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = requests.request(method, url, **kwargs)
+                if response.status_code < 500:
+                    return response
+                logger.warning(f"{method}请求返回{response.status_code}，第{attempt}/{max_retries}次")
+            except requests.RequestException as e:
+                if attempt == max_retries:
+                    raise
+                logger.warning(f"{method}请求异常，第{attempt}/{max_retries}次: {e}")
+            time.sleep(3 * attempt)
+        return response
+
     def handler_md_file(self, local_dir_obj, local_file_path_obj, url):
         # 下载压缩包的内容并保存到本地的zip文件当中
         import requests
-        zip_res = requests.get(url, timeout=120)
+        zip_res = self.request_with_retry("GET", url, timeout=120)
         if zip_res.status_code != 200:
             logger.error("下载压缩包的内容请求失败")
             raise ValueError("下载压缩包的内容请求失败")
@@ -130,7 +146,7 @@ class NodePDFToMD(NodeBase):
         }
         file_path = [local_file_path]
         # 判断请求成功不成功
-        response = requests.post(url, headers=header, json=data, timeout=30)
+        response = self.request_with_retry("POST", url, headers=header, json=data, timeout=30)
         if response.status_code != 200:
             logger.error("上传文件请求失败")
             raise ValueError("上传文件请求失败")
@@ -145,12 +161,13 @@ class NodePDFToMD(NodeBase):
         urls = result["data"]["file_urls"]
         for i in range(0, len(urls)):
             with open(file_path[i], 'rb') as f:
-                res_upload = requests.put(urls[i], data=f, timeout=120)
-                if res_upload.status_code == 200:
-                    logger.info(f"{file_path[i]}上传成功")
-                else:
-                    logger.error(f"{file_path[i]}上传失败，状态码{res_upload.status_code}")
-                    raise ValueError(f"{file_path[i]}上传失败，状态码{res_upload.status_code}")
+                file_data = f.read()
+            res_upload = self.request_with_retry("PUT", urls[i], data=file_data, timeout=120)
+            if res_upload.status_code == 200:
+                logger.info(f"{file_path[i]}上传成功")
+            else:
+                logger.error(f"{file_path[i]}上传失败，状态码{res_upload.status_code}")
+                raise ValueError(f"{file_path[i]}上传失败，状态码{res_upload.status_code}")
         # print(batch_id)
         return batch_id
 
