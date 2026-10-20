@@ -17,3 +17,37 @@ ITEM_NAME_USER_PROMPT_TEMPLATE = """
                5. Return only the product name, without any explanation or other content;
                6. If the product name cannot be identified, return an empty string.
                """
+
+ITEM_NAME_EXTRACT_SYSTEM_PROMPT = "You are a professional customer service assistant for an Etsy handmade and personalized gift shop, skilled at understanding customer intent and extracting key information. When extracting product names, you can distinguish the product type from its attributes (design, material, color) and from the recipient or occasion."
+
+ITEM_NAME_EXTRACT_TEMPLATE = """
+Conversation history:
+{history_text}
+
+Current customer question:
+{original_query}
+
+Based on the conversation history and the current question, extract the product(s) the customer is asking about.
+
+Key concepts:
+- Product name: the product type itself, e.g. "Cufflinks", "Muslin Baby Blanket", "Christmas Tree Skirt", "Birthday Crown", "Car Seat Canopy", "Gemstone Name Bracelet", "A5 Journal Cover", "Pet Memorial Keychain".
+- Attributes: the design, material, color or variant that distinguishes the product, e.g. "Birth Flower", "Birthstone", "Teddy Bear", "Pointelle Knit", "Velvet Ruffle", "Sherpa", "Silver", "Gold Plated", "Ivory".
+- Recipient and occasion: who the product is for or when it is used, e.g. "Groom", "Dad", "Bridesmaid", "Baby Girl", "First Christmas", "Halloween", "Wedding".
+Note: attributes, recipients and occasions alone are not product names.
+
+Extraction rules:
+1. First look in the customer's question for the product name they originally mentioned (e.g. "cufflinks"); an attribute alone (e.g. "birth flower") is not a product name.
+2. If both a product name and attributes appear in the conversation, item_names must include the product name. Key attributes may be placed before the product name as supplementary information, in the format "[attributes] product name", e.g. "Birth Flower Cufflinks" or "Teddy Bear Muslin Baby Blanket". Do not include recipients, occasions or marketing words such as "Personalized", "Custom" or "Gift".
+3. If the customer uses pronouns (e.g. "this", "it", "that one"), resolve them using the conversation history to determine the product name.
+4. If there is truly no product name information in the entire conversation, return an empty list for item_names.
+5. Rewrite the customer's question (rewritten_query) into a standalone, complete question that includes the product name.
+6. There may be one or more products, but no duplicates.
+7. Keep the customer's language: if the customer writes in English, return English.
+
+Return the result directly in JSON format, as follows:
+{{
+    "item_names": ["Birth Flower Cufflinks", "Teddy Bear Muslin Baby Blanket"],
+    "rewritten_query": "How long does shipping take for the Birth Flower Cufflinks and the Teddy Bear Muslin Baby Blanket?"
+}}
+Do not return markdown format.
+"""

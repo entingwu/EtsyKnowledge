@@ -1,5 +1,8 @@
 # 这个文件是专门给mongodb的操作做了封装，后期操作mongo的增删改查全部都对应这个文件当中一个函数
 # 1. 获取单例的mongo链接对象
+import time
+
+from bson import ObjectId
 from pymongo import MongoClient
 from pymongo import ASCENDING, DESCENDING
 
@@ -8,7 +11,7 @@ from knowledgebase.config.config import MongoConfig
 mongo_client = None
 def get_mongo_client():
   global mongo_client
-  if not mongo_client:
+  if mongo_client is None:
     mongo_client = MongoClient(MongoConfig.mongo_url)
     print(mongo_client)
   return mongo_client
@@ -16,7 +19,7 @@ def get_mongo_client():
 mongo_tool = None
 def get_mongo_tool():
   global mongo_tool
-  if not mongo_tool:
+  if mongo_tool is None:
     mongo_client = get_mongo_client() # 获取连接对象，目的是为了创建数据库
     db = mongo_client[MongoConfig.mongo_db_name] # 创建数据获取数据库对象
     mongo_tool = db["chat_message"] # 创建集合对象，获取集合对象
@@ -33,20 +36,63 @@ def clear_history(session_id):
 def get_recent_messages(session_id, n=10):
   mongo_tool = get_mongo_tool()
   result = mongo_tool.find({"session_id": session_id}).sort({"ts": -1}).limit(n)
-  return result
+  return list(result) # 必须强转，传入游标对象，才能获取字典的列表数据
 
 # 增改一体
 #	save_chat_message保存历史记录（根据id决定是添加还是修改）
 # 一条数据如果是新增，那么它还没进入到数据库，此时不可能有id
 # 一条数据如果是修改，那么代表这条数据是从数据库里面取出来，一定有id
-def save_chat_message():
-  pass
+def save_chat_message(session_id, role, text, rewritten_query=None, item_names=None, ts=None, message_id=None):
+  mongo_tool = get_mongo_tool()
+  if message_id:
+    result = mongo_tool.update_one(
+      filter={"_id": message_id}, 
+      update={
+        "$set": {
+          "session_id": session_id,
+          "role": role,
+          "text": text,
+          "rewritten_query": rewritten_query,
+          "item_names": item_names,
+          "ts": ts or time.time()
+        }
+      })
+    return message_id
+  else:
+    result = mongo_tool.insert_one({
+      "session_id": session_id,
+      "role": role,
+      "text": text,
+      "rewritten_query": rewritten_query,
+      "item_names": item_names,
+      "ts": ts or time.time()
+    })
+    return result.inserted_id
 
 #	update_message_item_names 把通过意图判断获取的item_names添加到对应的历史消息当中
+def update_history_item_names(ids, item_names, rewritten_query):
+  mongo_tool = get_mongo_tool()
+  data = {
+      "item_names": item_names,
+      "rewritten_query": rewritten_query,
+  }
+  mongo_tool.update_many({"_id": {"$in": ids}}, {"$set": data})
 
-#	MongoJSONEncoder类，配置打印结果的json系列化工具，否则ObjectId类型在序列化的时候报错
 
 if __name__ == "__main__":
-  client = get_mongo_client()
-  print(client.admin.command("ping"))
-  tool = get_mongo_tool()
+  session_id = "test_001"
+  
+  # Test add
+  # result = save_chat_message(session_id, "user", "Could you tell me something about Birth Flower Cufflinks Gold Groom?")
+  # print('add', result)
+
+  # # Test find
+  # result = get_recent_messages(session_id)
+  # print('find', result)
+
+  # # Test update
+  # result = save_chat_message("hahaha", "user", "hehehe", message_id=ObjectId('6ad33cba59b4a074ed935604'))
+  # print('update', result)
+
+  # Test delete
+  clear_history(session_id)
