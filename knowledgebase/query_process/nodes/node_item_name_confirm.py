@@ -41,7 +41,7 @@ class NodeItemNameConfirm(NodeBase):
             search_item_name_list = self.hybrid_search_item_names(item_names)
 
             # 4. 对齐商品名称，区分出确认的名字、可能的名字、噪音(最终的item_names保存在final_item_names中)
-            final_item_names, answer = self.align_item_names(search_item_name_list)
+            answer, final_item_names = self.align_item_names(search_item_name_list)
 
 
         # 5. 处理历史记录，更新商品名称和重写问题到历史记录中
