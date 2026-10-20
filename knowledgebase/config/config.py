@@ -79,6 +79,10 @@ class BGEM3Config:
     # 是否使用半精度
     BGE_FP16=os.getenv('BGE_FP16') in ("True", "true", "1")
 
+class MCPConfig:
+    mcp_base_url = os.getenv('MCP_BASE_URL')
+    mcp_api_key = os.getenv('MCP_API_KEY')
+
 
 if __name__ == '__main__':
     env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.env"))
