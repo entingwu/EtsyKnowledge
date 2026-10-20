@@ -33,10 +33,6 @@ class NodeSearchEmbedding(NodeBase):
         # 1. item_name保存起来再后续检索模块意图识别的时候，进行相似度匹配来确认用户问的商品milvus当中存在不存在
         # 2. 根据用户问题检索chunks的时候，chunks在导入模块也回填了主体识别的item_name,所以这里检索的时候，
         #    通过查看chunks的item_name是不是在确认的意图识别的item_names当中, 是就拿，不是不要
-        item_names = [
-            item_name.replace("\\", "\\\\").replace("'", "\\'").replace('"', '\\"')
-            for item_name in item_names
-        ]
         expr = f"item_name in {json_format(item_names)}"
         
         reqs = get_search_reqs(
