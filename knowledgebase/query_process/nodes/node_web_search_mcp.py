@@ -18,9 +18,16 @@ CJK_PATTERN = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\uff00-\uffef
 EXCLUDE_DOMAINS = [
     "alibaba.com", "aliexpress.com", "made-in-china.com", "dhgate.com", "1688.com",
     "etsy.com", "amazon.com", "ebay.com", "walmart.com", "temu.com", "pinterest.com",
+    "instagram.com", "facebook.com", "tiktok.com", "youtube.com",
 ]
 # Tavily只排除完全相同的域名，amazon.co.uk、in.pinterest.com这类站点要按主机名再过滤一遍
 EXCLUDE_SITE_NAMES = {domain.split(".")[0] for domain in EXCLUDE_DOMAINS}
+
+# 独立店铺的商品页也是竞争对手，只保留使用、保养、出生花含义这类指南文章
+PRODUCT_PATH_PATTERN = re.compile(r"/(products?|listing|itm|dp|collections)/", re.IGNORECASE)
+
+# Tavily相关度低于这个分数的多是只沾边的页面
+MIN_SCORE = 0.2
 
 class NodeWebSearchMcp(NodeBase):
     """
@@ -45,10 +52,15 @@ class NodeWebSearchMcp(NodeBase):
             return {"web_search_docs": []}
 
         pages = data.get("results") or []
-        # Tavily以英文网页为主，再过滤一遍兜底，只保留英文网页，并去掉电商平台的各国站点
-        datas = [item for item in pages if self.is_english(item) and self.is_allowed_site(item)]
-        logger.info(f"Web search returned {len(pages)} pages, kept {len(datas)} pages")
-        logger.info(json_format(datas))
+        # Tavily以英文网页为主，再过滤一遍兜底，只保留英文网页，并去掉电商平台的各国站点和商品页
+        datas = [
+            item for item in pages
+            if item.get("score", 0) >= MIN_SCORE
+            and self.is_english(item)
+            and self.is_allowed_site(item)
+            and not self.is_product_page(item)
+        ]
+        logger.info(f"Web search returned {len(pages)} pages, kept {len(datas)} pages: {[item.get('url') for item in datas]}")
 
         return {
             "web_search_docs":[
@@ -70,18 +82,20 @@ class NodeWebSearchMcp(NodeBase):
         hostname = urlparse(item.get("url", "")).hostname or ""
         return not EXCLUDE_SITE_NAMES.intersection(hostname.split("."))
 
+    def is_product_page(self, item):
+        return bool(PRODUCT_PATH_PATTERN.search(urlparse(item.get("url", "")).path))
+
     # https://docs.tavily.com/documentation/mcp
     async def mcp_run(self, query, limit=10):
         token = MCPConfig.mcp_api_key
         url = MCPConfig.mcp_base_url
         async with MCPServerStreamableHttp(
-            name="Streamable HTTP Python Server",
+            name="Tavily Search",
             params={
                 "url": url,
                 "headers": {"Authorization": f"Bearer {token}"},
                 "timeout": 30,
             },
-            cache_tools_list=True,
             max_retry_attempts=3,
         ) as server:
             # 原本用的是智能体的方式，现在我们没办法使用，只能使用调用服务器工具的方法传递工具名的方法去使用，异步操作
@@ -98,8 +112,8 @@ class NodeWebSearchMcp(NodeBase):
 
 if __name__ == "__main__":
     init_state = {
-        "rewritten_query": "What kinds of Birth Flower Cufflinks?",
+        "rewritten_query": "How to use the Birth Flower Cufflinks?",
     }
-    node_search_embedding = NodeWebSearchMcp()
-    result = node_search_embedding(init_state)
+    node_web_search_mcp = NodeWebSearchMcp()
+    result = node_web_search_mcp(init_state)
     logger.info(json_format(result))
