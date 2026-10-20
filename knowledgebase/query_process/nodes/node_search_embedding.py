@@ -64,10 +64,10 @@ class NodeSearchEmbedding(NodeBase):
         }
 
 if __name__ == "__main__":
-     init_state = {
-          "rewritten_query": "What kinds of Birth Flower Cufflinks?",
-          "item_names": ["Birth Flower Cufflinks Gold Groom"]
-     }
-     node_search_embedding = NodeSearchEmbedding()
-     result = node_search_embedding(init_state)
-     logger.info(json_format(result))
+    init_state = {
+        "rewritten_query": "What kinds of Birth Flower Cufflinks?",
+        "item_names": ["Birth Flower Cufflinks Gold Groom"]
+    }
+    node_search_embedding = NodeSearchEmbedding()
+    result = node_search_embedding(init_state)
+    logger.info(json_format(result))

@@ -51,3 +51,14 @@ Return the result directly in JSON format, as follows:
 }}
 Do not return markdown format.
 """
+
+HYDE_PROMPT = """
+Write a concise sample answer to the following customer question about a product from our Etsy shop.
+Customer question: {rewritten_query}
+Requirements:
+1. Keep the answer concise and clear, covering only the core information;
+2. Answer as an expert on this product and give a professional explanation;
+3. Do not use uncertain words such as "suppose", "maybe" or "possibly";
+4. Keep the answer closely related to the question;
+5. Answer in English, in no more than 150 words.
+"""
