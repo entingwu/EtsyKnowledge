@@ -60,9 +60,13 @@ item_name = self.get_item_name(file_title, context)
 **② 写进 item_name 表**（`insert_data`），每份文件一条：
 
 ```python
-data = {"item_name": item_name, "file_title": file_title, "dense_vector": ..., "sparse_vector": ...}
+embeddings = get_bge_embeddings([listing_title or item_name])
+data = {"item_name": item_name, "listing_title": listing_title, "listing_id": listing_id,
+        "file_title": file_title, "dense_vector": ..., "sparse_vector": ...}
 milvus_client.insert(collection_name=MilvusConfig.item_name_collection, data=data)
 ```
+
+注意向量化的文本是 **`listing_title`**（拿不到才用 `item_name`），不是 `item_name` 本身。listing 标题比 3–8 个词的商品名信息更全，查询时大模型给出的短名（"Birth Flower Cufflinks"）实际上是在和完整标题（"Birth Flower Cufflinks – Gold, Groom"）比相似度。`item_name` 字段只作为对齐后取回的标准名和过滤值。
 
 **③ 同一个变量回填到每个 chunk**（`insert_data`）：
 
@@ -138,6 +142,8 @@ final_item_names = ['Birth Flower Cufflinks Gold Groom']   # 分数 ≥ 0.85
 answer = ''
 ```
 
+对齐按大模型给出的**每个原始名分组**进行：某个原始名有 ≥ 0.85 的结果就算确认，否则它的 0.6 ~ 0.85 结果作为可选项。只要有任何一个原始名停留在可选项，就反问用户（已确认的名字仍写进 `final_item_names` 和历史记录）。确认名和可选项都会去重，已确认的名字不会再出现在可选项里。
+
 **④ 写回图状态**（`process` 的 return）
 
 ```python
@@ -161,9 +167,9 @@ def after_item_name_confirm_router(self, state):
 
 | `align_item_names` 结果 | answer | 去向 |
 |---|---|---|
-| 有确认的名字（≥ 0.85） | `''` | 3 个检索节点并行 |
-| 只有可选的名字（0.6 ~ 0.85） | `"Which of these products..."` | 直接回复，让用户选 |
-| 全是噪音（< 0.6） | `"Sorry, we couldn't identify..."` | 直接回复，让用户重新提问 |
+| 每个原始名要么确认（≥ 0.85）、要么全是噪音，且至少一个确认 | `''` | 3 个检索节点并行 |
+| 有原始名只有可选的名字（0.6 ~ 0.85） | `"Which of these products..."` | 直接回复，让用户选 |
+| 全是噪音（< 0.6），或大模型没提取到名字 / 返回无法解析的 JSON | `"Sorry, we couldn't identify..."` | 直接回复，让用户重新提问 |
 
 **⑥ 用标准名过滤 chunks**（`NodeSearchEmbedding.process`）
 

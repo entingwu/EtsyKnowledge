@@ -1,4 +1,5 @@
 import json
+import re
 
 from langchain.chat_models import init_chat_model
 
@@ -93,22 +94,32 @@ class NodeItemNameConfirm(NodeBase):
 
     def align_item_names(self, search_item_name_list):
         # 把检索整理的结果进行商品名称对齐：就是区分出确认的名字、可能的名字、噪音
-        confirm_item_names = [
-            search_item_name.get("search_item_name") for search_item_name in search_item_name_list if search_item_name["score"] >= 0.85]
+        grouped_item_names = {}
+        for search_item_name in search_item_name_list:
+            grouped_item_names.setdefault(search_item_name["original_item_name"], []).append(search_item_name)
 
-        option_item_names = [
-            search_item_name.get("search_item_name") for search_item_name in search_item_name_list if search_item_name["score"] < 0.85
-                                                                                                and search_item_name["score"] >= 0.6
-        ]
+        confirm_item_names = []
+        option_item_names = []
+        for group in grouped_item_names.values():
+            group_confirm_item_names = [
+                search_item_name.get("search_item_name") for search_item_name in group if search_item_name["score"] >= 0.85]
+            if group_confirm_item_names:
+                confirm_item_names.extend(group_confirm_item_names)
+            else:
+                option_item_names.extend(
+                    search_item_name.get("search_item_name") for search_item_name in group if 0.6 <= search_item_name["score"] < 0.85)
 
-        if confirm_item_names:
+        confirm_item_names = list(dict.fromkeys(confirm_item_names))
+        option_item_names = [name for name in dict.fromkeys(option_item_names) if name not in confirm_item_names]
+
+        if option_item_names:
+            # 没有确定的但是有可选的
+            final_item_names = confirm_item_names
+            answer = f"Which of these products are you asking about: {', '.join(option_item_names)}?"
+        elif confirm_item_names:
             # 有确定的名字
             final_item_names = confirm_item_names
             answer = ''
-        elif option_item_names:
-            # 没有确定的但是有可选的
-            final_item_names = []
-            answer = f"Which of these products are you asking about: {', '.join(option_item_names)}?"
         else:
             # 全是噪音，没有任何名字
             final_item_names = []
@@ -168,13 +179,17 @@ class NodeItemNameConfirm(NodeBase):
         ]
 
         res = llm.invoke(input=messages)
-        res_json = res.content
-        res_data = json.loads(res_json)
+        res_json = re.sub(r"^```(?:json)?\s*|\s*```$", "", res.content.strip())
+        try:
+            res_data = json.loads(res_json)
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse item names from LLM response: {res.content}")
+            res_data = {}
 
-        item_names = res_data.get("item_names", [])
+        item_names = res_data.get("item_names") or []
         item_names = [item.replace("\n", "").replace("\t", "") for item in item_names]
 
-        rewritten_query = res_data.get("rewritten_query", original_query)
+        rewritten_query = res_data.get("rewritten_query") or original_query
         return item_names, rewritten_query
 
 
