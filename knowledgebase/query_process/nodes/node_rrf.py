@@ -39,7 +39,7 @@ class NodeRrf(NodeBase):
                 else:
                     # 没有重复，复制一份再改分数，不覆盖上游chunk原来的相似度分数
                     rrf_dict[chunk_id] = {**chunk, "score": score}
-        
+        # 排序 按照分数的高低进行排序，取前10个
         rrf_chunks = sorted(rrf_dict.values(), key=lambda x: x["score"], reverse=True) # 不影响原地
         return {
             "rrf_chunks": rrf_chunks

@@ -92,4 +92,4 @@ if __name__ == "__main__":
     }
     node_search_embedding_hyde = NodeSearchEmbeddingHyde()
     result = node_search_embedding_hyde(init_state)
-    logger.info(json_format(result))
+    #logger.info(json_format(result))

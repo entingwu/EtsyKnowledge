@@ -84,6 +84,11 @@ class MCPConfig:
     mcp_api_key = os.getenv('MCP_API_KEY')
 
 
+class RerankConfig:
+    rerank_base_url = os.getenv('RERANK_BASE_URL')
+    rerank_api_key = os.getenv('RERANK_API_KEY')
+    rerank_instruct = os.getenv('TEXT_RERANK_INSTRUCT')
+
 if __name__ == '__main__':
     env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.env"))
     print(os.path.dirname(__file__))

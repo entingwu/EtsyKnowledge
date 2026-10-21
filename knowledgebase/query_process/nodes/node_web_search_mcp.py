@@ -17,7 +17,7 @@ CJK_PATTERN = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\uff00-\uffef
 # 电商平台和Pinterest上是竞争对手的商品页，出现在回复里等于帮别人引流
 EXCLUDE_DOMAINS = [
     "alibaba.com", "aliexpress.com", "made-in-china.com", "dhgate.com", "1688.com",
-    "etsy.com", "amazon.com", "ebay.com", "walmart.com", "temu.com", "pinterest.com",
+    "etsy.com", "amazon.com", "ebay.com", "walmart.com", "temu.com", "zazzle.com", "pinterest.com",
     "instagram.com", "facebook.com", "tiktok.com", "youtube.com",
 ]
 # Tavily只排除完全相同的域名，amazon.co.uk、in.pinterest.com这类站点要按主机名再过滤一遍
@@ -65,8 +65,8 @@ class NodeWebSearchMcp(NodeBase):
         return {
             "web_search_docs":[
                 {
-                    "content": item.get("content", ""),
                     "title": item.get("title", ""),
+                    "content": item.get("content", ""),
                     "url": item.get("url", ""),
                     "source": "web"
                 }
@@ -96,6 +96,7 @@ class NodeWebSearchMcp(NodeBase):
                 "headers": {"Authorization": f"Bearer {token}"},
                 "timeout": 30,
             },
+            client_session_timeout_seconds=30,
             max_retry_attempts=3,
         ) as server:
             # 原本用的是智能体的方式，现在我们没办法使用，只能使用调用服务器工具的方法传递工具名的方法去使用，异步操作
