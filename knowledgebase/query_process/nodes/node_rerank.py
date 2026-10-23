@@ -45,7 +45,8 @@ class NodeRerank(NodeBase):
             merged_chunks[item["index"]]["score"] = item["score"]
         rerank_chunks = sorted(merged_chunks, key=lambda x: x["score"], reverse=True)
 
-        # 要么就是chunk高的chunk不全
+        #我们要从重排序后的chunks当中获取分数比较高的，不能直接写死topk，而是要动态获取，否则要么就是拿到的chunks当中混入了分数比较低的chunk
+        #要么就是分数高的chunk拿不全
 
         # 动态 TopK：硬上限：最多取N条(<=10)
         RERANK_MAX_TOPK: int = 10
