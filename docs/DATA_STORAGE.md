@@ -16,8 +16,9 @@ Milvus 和 MinIO 用的是 EtsyKnowledge 的 `etsy-kb-*` 容器（`docker-compos
 ## 2. MinIO：图片和原文件
 
 - 容器：`etsy-kb-minio`，API `127.0.0.1:9000`，控制台 http://127.0.0.1:9001
-- bucket `knowledge-base`：
-  - `upload-images/`：PDF 里的图片。MD 和切片里的图片链接都指向这里，例如 `http://127.0.0.1:9000/knowledge-base/upload-images/011_…`
+- bucket `etsy-kb`：
+  - `upload-images/<内容哈希>.jpg`：PDF 里的图片。MD 和切片里的图片链接都指向这里，例如 `http://127.0.0.1:9000/etsy-kb/upload-images/26d890e9….jpg`。文件名就是图片内容的哈希，所有 listing 共用这个目录，同一张照片只存一份；`node_md_img` 上传前会先检查，已经存在就跳过。（2026-10-23 之前是按 listing 分目录 `upload-images/<file_title>/`，已全部迁移过来。）
+  - `pdf_file/<日期>/<task_id>/`：网页上传的原文件备份（`import_service.py`）。
 - 磁盘位置：`~/PycharmProjects/EtsyKnowledge/volumes/minio`
 
 ## 3. 配置

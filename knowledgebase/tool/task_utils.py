@@ -30,33 +30,33 @@ TASK_STATUS_PROCESSING = "processing"
 TASK_STATUS_COMPLETED = "completed"
 TASK_STATUS_FAILED = "failed"
 
-# 节点名 -> 中文名映射（用于前端展示）
+# 节点名 -> 英文展示名映射（用于前端展示）
 # 说明：这里的 key 应与 LangGraph 的 add_node("xxx", ...) 中的节点名一致。
-_NODE_NAME_TO_CN: Dict[str, str] = {
-    "upload_file": "开始上传文件",  
-    "node_entry": "检查文件",
-    "node_pdf_to_md": "PDF转Markdown",
-    "node_md_img": "Markdown图片处理",
-    "node_item_name_recognition": "主体名称识别",
-    "node_document_split": "文档切分",
-    "node_bge_embedding": "向量生成",
-    "node_import_milvus": "导入向量库",
+_NODE_NAME_TO_DISPLAY: Dict[str, str] = {
+    "upload_file": "Upload file",
+    "node_entry": "Check file",
+    "node_pdf_to_md": "PDF to Markdown",
+    "node_md_img": "Process Markdown images",
+    "node_item_name_recognition": "Recognize product name",
+    "node_document_split": "Split document",
+    "node_bge_embedding": "Generate embeddings",
+    "node_import_milvus": "Import to Milvus",
 
     # --- Query 流程节点---
-    "node_item_name_confirm": "确认问题产品",
-    "node_answer_output": "生成答案",
-    "node_rerank": "重排序",
-    "node_rrf": "倒排融合",
-    "node_web_search_mcp": "网络搜索",
-    "node_search_embedding": "切片搜索",
-    "node_search_embedding_hyde": "切片搜索(假设性文档)",
-    "node_multi_search": "多路搜索",
-    "node_join": "多路搜索合并",
+    "node_item_name_confirm": "Confirm product",
+    "node_answer_output": "Generate answer",
+    "node_rerank": "Rerank",
+    "node_rrf": "RRF fusion",
+    "node_web_search_mcp": "Web search",
+    "node_search_embedding": "Chunk search",
+    "node_search_embedding_hyde": "Chunk search (HyDE)",
+    "node_multi_search": "Multi-route search",
+    "node_join": "Merge search results",
 }
 
-def _to_cn(node_name: str) -> str:
-  """将节点名转换为中文展示名；若无映射则返回原名。"""
-  return _NODE_NAME_TO_CN.get(node_name, node_name)
+def _to_display(node_name: str) -> str:
+  """将节点名转换为英文展示名；若无映射则返回原名。"""
+  return _NODE_NAME_TO_DISPLAY.get(node_name, node_name)
 
 def add_running_task(task_id: str, node_name: str) -> None:
   """
@@ -101,7 +101,7 @@ def get_running_task_list(task_id: str) -> List[str]:
   """
   # 获取指定任务运行中的节点列表，并统一转换为中文名返回
   running = _tasks_running_list.get(task_id, [])
-  return [ _to_cn(n) for n in running]
+  return [ _to_display(n) for n in running]
 
 def get_done_task_list(task_id: str) -> List[str]:
   """
@@ -109,7 +109,7 @@ def get_done_task_list(task_id: str) -> List[str]:
   """
   # 获取指定任务已完成的节点列表，并统一转换为中文名返回
   done = _tasks_done_list.get(task_id, [])
-  return [ _to_cn(n) for n in done]
+  return [ _to_display(n) for n in done]
 
 def get_task_status(task_id: str) -> str:
   """
@@ -139,8 +139,8 @@ def update_task_status(task_id: str, status_name: str) -> None:
 
 def add_node_duration(task_id: str, node_name: str, duration: float) -> None:
   """记录节点耗时（秒）"""
-  cn_name = _to_cn(node_name)
-  _tasks_duration[task_id][cn_name] = round(duration, 2)
+  display_name = _to_display(node_name)
+  _tasks_duration[task_id][display_name] = round(duration, 2)
 
 def get_node_durations(task_id: str) -> Dict[str, float]:
   """获取所有节点的耗时"""
@@ -167,15 +167,16 @@ def create_queue(task_id: str):
   return queue_dict[task_id]
 
 
-def put_data(task_id,event,data):
-  while not queue_dict.get(task_id):
-      time.sleep(1)
-  q = queue_dict.get(task_id)
-  q.put({"event":event,"data":data})
+def put_data(task_id, event, data):
+  while not queue_dict[task_id]:
+    time.sleep(1)
+
+  queue = queue_dict(task_id)
+  queue.put({"event": event, "data": data})
 
 
 def get_data(task_id):
   while not queue_dict.get(task_id):
       time.sleep(1)
-  q = queue_dict.get(task_id)
-  return q.get()
+  queue = queue_dict.get(task_id)
+  return queue.get()

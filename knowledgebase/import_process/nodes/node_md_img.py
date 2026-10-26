@@ -6,7 +6,7 @@ import re
 import time
 
 from langchain.chat_models import init_chat_model
-from minio.deleteobjects import DeleteObject
+from minio.error import S3Error
 
 from knowledgebase.config.config import LLMConfig, MinIoConfig
 from knowledgebase.import_process.base import NodeBase
@@ -84,42 +84,24 @@ class NodeMDImg(NodeBase):
         # 上传图片获取图片的在线url
         minio_client = get_minio_client()
         
-        # 构造上传图片在桶里面的目录（除了桶和文件）
-        # upload_dir 是目录名
-        upload_dir = f"{MinIoConfig.minio_img_dir}/{md_path_obj.stem}"
-        # 本来我们准备好上传的目录之后就可以调用工具进行上传，但是在删除之前我们都要去做一个幂等性删除, 图片如果存在了就删除
-        # 幂等性删除图片
-
-        # 1. 根据工具从minio当中获取到upload_dir下的老文件
+        # 图片文件名是内容哈希，所有listing共用一个目录：同一张照片只存一份、只有一个url
+        # 所以不再按listing分目录，也不做幂等性删除（共用的图片可能还被别的listing引用）
+        upload_dir = MinIoConfig.minio_img_dir
         bucket_name = MinIoConfig.minio_bucket_name
-        old_image_generator = minio_client.list_objects(
-            bucket_name=bucket_name,
-            prefix=upload_dir,
-            recursive=True
-        )
-
-        # 2. 把老文件转化为delete_object_list
-        delete_object_list = [DeleteObject(obj.object_name) for obj in old_image_generator]
-
-        # 3. 调用工具删除minio当中的老文件
-        errors = minio_client.remove_objects(
-            bucket_name=bucket_name,
-            delete_object_list=delete_object_list,
-        )
-        # 打印想知道errors生成器的错误信息的生成器，还是真正删除图片的生成器
-        # 如果我们没有遍历它，图片删除了，代表这个生成器是错误信息的生成器
-        for error in errors:
-            logger.error(f"error occurred when deleting object: {error}")
 
         image_with_summary_url_list = []
         for image_with_summary in image_with_summary_list:
-            minio_client.fput_object(
-                bucket_name=bucket_name,
-                object_name=f"{upload_dir}/{image_with_summary.get('image_name')}", # 目录名 + 文件名
-                file_path=image_with_summary.get("image_path")
-            )
+            object_name = f"{upload_dir}/{image_with_summary.get('image_name')}" # 目录名 + 文件名
+            if self.object_exists(minio_client, bucket_name, object_name):
+                logger.info(f"图片已存在，跳过上传: {object_name}")
+            else:
+                minio_client.fput_object(
+                    bucket_name=bucket_name,
+                    object_name=object_name,
+                    file_path=image_with_summary.get("image_path")
+                )
 
-            url = f"http://{MinIoConfig.minio_endpoint}/{bucket_name}/{upload_dir}/{image_with_summary.get('image_name')}"
+            url = f"http://{MinIoConfig.minio_endpoint}/{bucket_name}/{object_name}"
             image_with_summary_url_list.append({
                 **image_with_summary,
                 "url": url,
@@ -127,6 +109,15 @@ class NodeMDImg(NodeBase):
 
         logger.info(json_format(image_with_summary_url_list))
         return image_with_summary_url_list
+
+    def object_exists(self, minio_client, bucket_name, object_name):
+        try:
+            minio_client.stat_object(bucket_name, object_name)
+            return True
+        except S3Error as e:
+            if e.code == "NoSuchKey":
+                return False
+            raise
 
     def get_md_content(self, state: ImportGraphState):
         md_path = state.get("md_path")

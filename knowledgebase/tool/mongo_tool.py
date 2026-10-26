@@ -42,7 +42,7 @@ def get_recent_messages(session_id, n=10):
 #	save_chat_message保存历史记录（根据id决定是添加还是修改）
 # 一条数据如果是新增，那么它还没进入到数据库，此时不可能有id
 # 一条数据如果是修改，那么代表这条数据是从数据库里面取出来，一定有id
-def save_chat_message(session_id, role, text, rewritten_query=None, item_names=None, ts=None, message_id=None):
+def save_chat_message(session_id, role, text, rewritten_query=None, item_names=None, image_urls=None, ts=None, message_id=None):
   mongo_tool = get_mongo_tool()
   if message_id:
     result = mongo_tool.update_one(
@@ -54,6 +54,7 @@ def save_chat_message(session_id, role, text, rewritten_query=None, item_names=N
           "text": text,
           "rewritten_query": rewritten_query,
           "item_names": item_names,
+          "image_urls": image_urls,
           "ts": ts or time.time()
         }
       })
@@ -65,6 +66,7 @@ def save_chat_message(session_id, role, text, rewritten_query=None, item_names=N
       "text": text,
       "rewritten_query": rewritten_query,
       "item_names": item_names,
+      "image_urls": image_urls,
       "ts": ts or time.time()
     })
     return result.inserted_id

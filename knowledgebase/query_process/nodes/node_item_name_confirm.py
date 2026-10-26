@@ -100,9 +100,14 @@ class NodeItemNameConfirm(NodeBase):
 
         confirm_item_names = []
         option_item_names = []
-        for group in grouped_item_names.values():
+        for original_item_name, group in grouped_item_names.items():
+            # 检索到的名字和识别的名字完全一致就直接确认：混合检索下完全相同的名字得分也只有0.83左右，到不了0.85
             group_confirm_item_names = [
-                search_item_name.get("search_item_name") for search_item_name in group if search_item_name["score"] >= 0.85]
+                search_item_name.get("search_item_name") for search_item_name in group
+                if self.normalize_item_name(search_item_name.get("search_item_name")) == self.normalize_item_name(original_item_name)]
+            if not group_confirm_item_names:
+                group_confirm_item_names = [
+                    search_item_name.get("search_item_name") for search_item_name in group if search_item_name["score"] >= 0.85]
             if group_confirm_item_names:
                 confirm_item_names.extend(group_confirm_item_names)
             else:
@@ -125,6 +130,9 @@ class NodeItemNameConfirm(NodeBase):
             final_item_names = []
             answer = "Sorry, we couldn't identify the product you're asking about. Please rephrase your question."
         return answer, final_item_names
+
+    def normalize_item_name(self, item_name):
+        return " ".join((item_name or "").lower().split())
 
     def handle_history(self, session_id, message_id, answer, final_item_names, rewritten_query):
         # 把商品名称对齐完成后，其实这个节点主要功能就结束了，但是我们需要把历史记录处理一下。

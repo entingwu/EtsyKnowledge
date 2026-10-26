@@ -3,10 +3,12 @@
 
 定义统一的节点接口规范，提供通用功能
 """
+import time
 from abc import abstractmethod, ABC
 
 from knowledgebase.query_process.state import QueryGraphState
 from knowledgebase.tool.logger import logger
+from knowledgebase.tool.task_utils import add_done_task, add_node_duration, add_running_task, get_task_info, put_data
 
 
 class NodeBase(ABC):
@@ -27,9 +29,20 @@ class NodeBase(ABC):
         try:
             logger.info(f"{self.name} 开始执行...")
 
+            # 更新节点状态，放到队列，sse后期就可以从队列当中取出更新的数据状态推送给前端
+            task_id = state.get("task_id")
+            add_running_task(task_id, self.name)
+            put_data(task_id, "progress", get_task_info(task_id))
+            start_time = time.time()
+
             result = self.process(state)
 
             logger.info(f"{self.name} 结束执行...")
+
+            # 更新节点状态，放到队列，sse后期就可以从队列当中取出更新的数据状态推送给前端
+            add_done_task(task_id, self.name)
+            add_node_duration(task_id, self.name, time.time() - start_time)
+            put_data(task_id, "progress", get_task_info(task_id))
 
             return result
         except Exception as e:
