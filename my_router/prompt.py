@@ -1,5 +1,5 @@
 import json
-
+from transformers import AutoTokenizer
 from system_prompt import SYSTEM
 
 ROLE_NAMES = {"user": "buyer", "assistant": "seller"}
@@ -36,11 +36,18 @@ if __name__ == "__main__":
     long_history = [{"role": "user" if i % 2 else "assistant", "text": f"h{i}"}
                     for i in range(1, 7)]
     cases = [
-        ("带历史", row["message"], row["history"], None),
-        ("无历史", "Can I change the shipping address on my order?", [], None),
-        ("长历史", "latest question", long_history, None),
-        ("带商品", "Received my journals and two pages are torn", [], "A6 Journal Set – Travel (#4580818745)"),
+        ("with history", row["message"], row["history"], None),
+        #("no history", "Can I change the shipping address on my order?", [], None),
+        #("long history", "latest question", long_history, None),
+        #("with listing", "Received my journals and two pages are torn", [], "A6 Journal Set – Travel (#4580818745)"),
     ]
     for name, message, history, listing in cases:
         print(f"---- {name} ----")
         print(build_messages(message, history, listing)[1]["content"])
+
+    model_path = "/Users/entingwu/PycharmProjects/Finetune/model/Qwen3-0.6B"
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
+
+    intent, _, subtype = row["label"].partition(":")
+    print("======== full sample ========")
+    print(build_prompt(tokenizer, row["message"], row["history"]) + build_answer(intent, subtype))
