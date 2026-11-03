@@ -11,8 +11,19 @@ def encode(tokenizer, prompt, answer, max_length=1024):
     mask = [0] * len(prompt_ids) + [1] * len(answer_ids)
     return ids, mask
 
+# Return input_ids, labels, loss_mask
 def collate(batch, pad_id):
-    pass
+    max_len = max(len(ids) for ids, _ in batch)
+    padded_ids, padded_mask = [], []
+    for ids, mask in batch:
+       padded_ids.append(ids + [pad_id] * (max_len - len(ids))) # 	在 token 序列右侧补 pad_id
+       padded_mask.append(mask + [0] * (max_len - len(mask)))   #   在 mask 序列右侧补 0
+    ids = torch.tensor(padded_ids, dtype=torch.long)
+    mask = torch.tensor(padded_mask, dtype=torch.long)
+    input_ids = ids[:, :-1]
+    labels = ids[:, 1:]
+    loss_mask = mask[:, 1:]
+    return input_ids, labels, loss_mask
 
 if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained("/Users/entingwu/PycharmProjects/Finetune/model/Qwen3-0.6B")
@@ -37,4 +48,5 @@ if __name__ == "__main__":
     input_ids, labels, loss_mask = collate(batch, tokenizer.pad_token_id)
     print("shapes:", input_ids.shape, labels.shape, loss_mask.shape)
     for i in range(3):
-      print(repr(tokenizer.decode(labels[i][loss_mask[i] == 1])))
+       print(repr(tokenizer.decode(labels[i][loss_mask[i] == 1])))
+       print("mask values", loss_mask.unique().tolist())
